@@ -1,5 +1,5 @@
 #!usr/bin/python 3.6
-#-*-coding:utf-8-*-
+# -*-coding:utf-8-*-
 
 '''
 @file: da.py, deterministic annealing algorithm
@@ -7,24 +7,47 @@
 @Date: 11/28/2019
 @Paper reference: Clustering with Capacity and Size Constraints: A Deterministic Approach
 '''
+from typing import Dict, Tuple
 
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 from copy import deepcopy
 import collections
 import random
 from scipy.spatial.distance import cdist
 
-import os 
-import sys 
+import os
+import sys
+
 path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(path)
-import base 
+import base
+
+
+def show_data(X, gibbs, centers):
+    # brand_to_color = string_to_int([e.brand for e in equipments])
+    # b_colors = [brand_to_color[e.brand] for e in equipments]
+    if gibbs is not None:
+        probs = np.max(gibbs, axis=1)
+        colors = [cm.summer(p) for p in probs]
+    else:
+        colors = [0] * X.shape[0]
+    plt.clf()
+    plt.scatter(X[:, 0], X[:, 1], s=10, c=colors)
+    plt.scatter(centers[:, 0], centers[:, 1], s=50, c=range(len(centers)), cmap='Accent')
+    plt.gca().set_aspect('equal')
+    plt.pause(0.01)
+
+
+plt.show()
+
 
 class DeterministicAnnealing(base.Base):
 
-    def __init__(self, n_clusters, distribution, max_iters=1000, 
-                distance_func=cdist, random_state=42, T=None):
+    def __init__(self, n_clusters, distribution, max_iters=1000,
+                 distance_func=cdist, random_state=42,
+                 T=(1000, 100, 10, 1, 0.1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8)):
         '''
         Args:
             n_clusters (int): number of clusters
@@ -33,22 +56,22 @@ class DeterministicAnnealing(base.Base):
         '''
         super(DeterministicAnnealing, self).__init__(n_clusters, max_iters, distance_func)
         self.lamb = distribution
-        assert np.sum(distribution) == 1 
+        assert np.sum(distribution).round(3) == 1
         assert len(distribution) == n_clusters
-        assert isinstance(T, list) or T is None
+        assert isinstance(T, list) or isinstance(T, tuple) or T is None
 
         self.beta = None
         self.T = T
-        self.cluster_centers_ = None 
-        self.labels_ = None 
+        self.t = None
+        self.cluster_centers_ = None
+        self.labels_ = None
         self._eta = None
         self._demands_prob = None
         random.seed(random_state)
         np.random.seed(random_state)
 
-    def fit(self, X, demands_prob=None):
+    def fit(self, X, demands_prob=None, fixed_points=None):
         # setting T, loop
-        T = [1, 0.1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8]
         solutions = []
         diff_list = []
         is_early_terminated = False
@@ -61,28 +84,42 @@ class DeterministicAnnealing(base.Base):
             demands_prob = np.asarray(demands_prob).reshape((-1, 1))
             assert demands_prob.shape[0] == X.shape[0]
         demands_prob = demands_prob / sum(demands_prob)
-        for t in T:
-            self.T = t
+        for t in self.T:
+            print(t)
+            self.t = t
             centers = self.initial_centers(X)
-            
+
+            if fixed_points:
+                centers = self.set_centers_for_anchors(centers, X, fixed_points)
+
             eta = self.lamb
             labels = None
-            for _ in range(self.max_iters):
-                self.beta = 1. / self.T
+
+            show_data(X, None, centers)
+            for i in range(self.max_iters):
+                self.beta = 1. / self.t
                 distance_matrix = self.distance_func(X, centers)
                 eta = self.update_eta(eta, demands_prob, distance_matrix)
                 gibbs = self.update_gibbs(eta, distance_matrix)
+                if fixed_points:
+                    gibbs = self.set_gibbs_fixed_points(gibbs, fixed_points)
                 centers = self.update_centers(demands_prob, gibbs, X)
-                self.T *= 0.999
+                if fixed_points:
+                    centers = self.set_centers_for_anchors(centers, X, fixed_points)
+                self.t *= 0.999
 
                 labels = np.argmax(gibbs, axis=1)
 
                 if self._is_satisfied(labels): break
 
+                if i < 100:
+                    show_data(X, gibbs, centers)
+
             solutions.append([labels, centers])
             resultant_clusters = len(collections.Counter(labels))
 
             diff_list.append(abs(resultant_clusters - self.n_clusters))
+
             if resultant_clusters == self.n_clusters:
                 is_early_terminated = True
                 break
@@ -93,11 +130,11 @@ class DeterministicAnnealing(base.Base):
             best_index = np.argmin(diff_list)
             labels, centers = solutions[best_index]
 
-        self.cluster_centers_ = centers 
+        self.cluster_centers_ = centers
         self.labels_ = labels
         self._eta = eta
         self._demands_prob = demands_prob
-    
+
     def predict(self, X):
         distance_matrix = self.distance_func(X, self.cluster_centers_)
         eta = self.update_eta(self._eta, self._demands_prob, distance_matrix)
@@ -115,13 +152,13 @@ class DeterministicAnnealing(base.Base):
             for cluster_id in cluster_id_list:
                 num_points = count[cluster_id]
                 diff = num_points - self.capacity[cluster_id]
-                if diff <= 0: 
+                if diff <= 0:
                     continue
                 adjacent_cluster = None
                 adjacent_cluster = random.choice(adjacent_centers[cluster_id])
-                if adjacent_cluster is None: 
+                if adjacent_cluster is None:
                     continue
-                cluster_point_id = np.where(labels==cluster_id)[0].tolist()
+                cluster_point_id = np.where(labels == cluster_id)[0].tolist()
                 diff_distance = distance_matrix[cluster_point_id, adjacent_cluster] \
                                 - distance_matrix[cluster_point_id, cluster_id]
                 remove_point_id = np.asarray(cluster_point_id)[np.argsort(diff_distance)[:diff]]
@@ -132,6 +169,11 @@ class DeterministicAnnealing(base.Base):
     def initial_centers(self, X):
         selective_centers = random.sample(range(X.shape[0]), self.n_clusters)
         centers = X[selective_centers]
+        return centers
+
+    def set_centers_for_anchors(self, centers, X, fixed_points: Dict[int, Tuple[int]]):
+        for cluster_id, points_idxs in fixed_points.items():
+            centers[cluster_id] = X[points_idxs].mean(axis=0)
         return centers
 
     def _is_satisfied(self, labels):
@@ -149,7 +191,7 @@ class DeterministicAnnealing(base.Base):
         eta_repmat = np.tile(np.asarray(eta).reshape(1, -1), (n_points, 1))
         exp_term = np.exp(- self.beta * distance_matrix)
         divider = exp_term / np.sum(np.multiply(exp_term,
-                            eta_repmat), axis=1).reshape((-1, 1))
+                                                eta_repmat), axis=1).reshape((-1, 1))
         eta = np.divide(np.asarray(self.lamb),
                         np.sum(divider * demands_prob, axis=0))
 
@@ -163,13 +205,20 @@ class DeterministicAnnealing(base.Base):
         gibbs = factor / np.sum(factor, axis=1).reshape((-1, 1))
         return gibbs
 
+    def set_gibbs_fixed_points(self, gibbs, fixed_points):
+        for cluster_id, points_id in fixed_points.items():
+            gibbs[[points_id]] = 0
+            gibbs[[points_id], cluster_id] = 1
+        return gibbs
+
     def update_centers(self, demands_prob, gibbs, X):
         n_points, n_features = X.shape
-        divide_up = gibbs.T.dot(X * demands_prob)# n_cluster, n_features
-        p_y = np.sum(gibbs * demands_prob, axis=0) # n_cluster,
+        divide_up = gibbs.T.dot(X * demands_prob)  # n_cluster, n_features
+        p_y = np.sum(gibbs * demands_prob, axis=0)  # n_cluster,
         p_y_repmat = np.tile(p_y.reshape(-1, 1), (1, n_features))
         centers = np.divide(divide_up, p_y_repmat)
         return centers
+
 
 if __name__ == "__main__":
     X = []

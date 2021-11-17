@@ -1,0 +1,5 @@
+.idea
+__pycache__/
+/build/
+/size_constrained_clustering.egg-info/
+*.so
