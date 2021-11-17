@@ -30,12 +30,14 @@ def show_data(X, gibbs, centers):
     # b_colors = [brand_to_color[e.brand] for e in equipments]
     if gibbs is not None:
         probs = np.max(gibbs, axis=1)
+        clusters = np.argmax(gibbs, axis=1)
         colors = [cm.summer(p) for p in probs]
     else:
         colors = [0] * X.shape[0]
     plt.clf()
     plt.scatter(X[:, 0], X[:, 1], s=10, c=colors)
-    plt.scatter(centers[:, 0], centers[:, 1], s=50, c=range(len(centers)), cmap='Accent')
+    for i, c in enumerate(centers):
+        plt.scatter(c[0], c[1], s=50)
     plt.gca().set_aspect('equal')
     plt.pause(0.01)
 
@@ -112,7 +114,7 @@ class DeterministicAnnealing(base.Base):
 
                 if self._is_satisfied(labels): break
 
-                if i < 100:
+                if i < 50:
                     show_data(X, gibbs, centers)
 
             solutions.append([labels, centers])
