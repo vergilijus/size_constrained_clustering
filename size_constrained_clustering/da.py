@@ -49,7 +49,8 @@ class DeterministicAnnealing(base.Base):
 
     def __init__(self, n_clusters, distribution, max_iters=1000,
                  distance_func=cdist, random_state=42,
-                 T=(1000, 100, 10, 1, 0.1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8)):
+                 T=(1000, 100, 10, 1, 0.1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8),
+                 debug=False):
         '''
         Args:
             n_clusters (int): number of clusters
@@ -69,6 +70,7 @@ class DeterministicAnnealing(base.Base):
         self.labels_ = None
         self._eta = None
         self._demands_prob = None
+        self.debug = debug
         random.seed(random_state)
         np.random.seed(random_state)
 
@@ -114,7 +116,7 @@ class DeterministicAnnealing(base.Base):
 
                 if self._is_satisfied(labels): break
 
-                if i < 50:
+                if self.debug and i < 50:
                     show_data(X, gibbs, centers)
 
             solutions.append([labels, centers])
