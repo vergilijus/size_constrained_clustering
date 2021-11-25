@@ -39,7 +39,7 @@ def show_data(X, gibbs, centers):
     for i, c in enumerate(centers):
         plt.scatter(c[0], c[1], s=50)
     plt.gca().set_aspect('equal')
-    plt.pause(0.01)
+    plt.pause(0.001)
 
 
 plt.show()
