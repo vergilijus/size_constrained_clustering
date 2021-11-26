@@ -26,8 +26,6 @@ import base
 
 
 def show_data(X, gibbs, centers):
-    # brand_to_color = string_to_int([e.brand for e in equipments])
-    # b_colors = [brand_to_color[e.brand] for e in equipments]
     if gibbs is not None:
         probs = np.max(gibbs, axis=1)
         clusters = np.argmax(gibbs, axis=1)
