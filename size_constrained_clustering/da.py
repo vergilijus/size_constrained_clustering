@@ -98,7 +98,8 @@ class DeterministicAnnealing(base.Base):
             eta = self.lamb
             labels = None
 
-            show_data(X, None, centers)
+            if self.debug:
+                show_data(X, None, centers)
             for i in range(self.max_iters):
                 self.beta = 1. / self.t
                 distance_matrix = self.distance_func(X, centers)
