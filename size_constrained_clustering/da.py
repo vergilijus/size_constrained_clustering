@@ -88,7 +88,8 @@ class DeterministicAnnealing(base.Base):
             assert demands_prob.shape[0] == X.shape[0]
         demands_prob = demands_prob / sum(demands_prob)
         for t in self.T:
-            print(t)
+            if self.debug:
+                print(t)
             self.t = t
             centers = self.initial_centers(X)
 
