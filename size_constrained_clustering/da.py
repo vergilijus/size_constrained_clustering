@@ -57,7 +57,7 @@ class DeterministicAnnealing(base.Base):
             T (list): inverse choice of beta coefficients
         '''
         super(DeterministicAnnealing, self).__init__(n_clusters, max_iters, distance_func)
-        self.lamb = distribution
+        self.lamb = [distribution,distribution]
         assert np.sum(distribution).round(3) == 1
         assert len(distribution) == n_clusters
         assert isinstance(T, list) or isinstance(T, tuple) or T is None
@@ -73,14 +73,14 @@ class DeterministicAnnealing(base.Base):
         random.seed(random_state)
         np.random.seed(random_state)
 
-    def fit(self, X, demands_prob=None, fixed_points=None):
+    def fit(self, X, demands_prob=None, fixed_points=None, point_type=None):
         # setting T, loop
         solutions = []
         diff_list = []
         is_early_terminated = False
 
         n_samples, n_features = X.shape
-        self.capacity = [n_samples * d for d in self.lamb]
+        self.capacity = [n_samples * d for d in self.lamb[0]]
         if demands_prob is None:
             demands_prob = np.ones((n_samples, 1))
         else:
@@ -99,13 +99,16 @@ class DeterministicAnnealing(base.Base):
             eta = self.lamb
             labels = None
 
+            #if point_type:
+            #    eta = [self.lamb, self.lamb]
+
             if self.debug:
                 show_data(X, None, centers)
             for i in range(self.max_iters):
                 self.beta = 1. / self.t
                 distance_matrix = self.distance_func(X, centers)
-                eta = self.update_eta(eta, demands_prob, distance_matrix)
-                gibbs = self.update_gibbs(eta, distance_matrix)
+                eta = self.update_eta(eta, demands_prob, distance_matrix,point_type)
+                gibbs = self.update_gibbs(eta, distance_matrix,point_type)
                 if fixed_points:
                     gibbs = self.set_gibbs_fixed_points(gibbs, fixed_points)
                 centers = self.update_centers(demands_prob, gibbs, X)
@@ -191,23 +194,62 @@ class DeterministicAnnealing(base.Base):
                 return False
         return True
 
-    def update_eta(self, eta, demands_prob, distance_matrix):
+    def update_eta(self, eta, demands_prob, distance_matrix,point_type):
         n_points, n_centers = distance_matrix.shape
-        eta_repmat = np.tile(np.asarray(eta).reshape(1, -1), (n_points, 1))
+        eta_repmat = np.tile(np.asarray(eta).reshape(1, -1), (n_points, 1)) # как будто не нужно
+
         exp_term = np.exp(- self.beta * distance_matrix)
-        divider = exp_term / np.sum(np.multiply(exp_term,
-                                                eta_repmat), axis=1).reshape((-1, 1))
-        eta = np.divide(np.asarray(self.lamb),
-                        np.sum(divider * demands_prob, axis=0))
+
+        # нужно посчитать sum_k отдельно для точек класса 0 и точек класса 1.
+        eta_k = [[],[]]
+        sum_k = 0
+        numerator = [[], []]
+        for idx,eta_jk in enumerate(eta):
+            sum_k += np.multiply(exp_term, eta_jk)  # сумма по k для эта_j_k*exp()
+        sum_jk = np.sum(sum_k, axis = 1).reshape((-1, 1))
+            #numerator[idx] = np.asarray(self.lamb[idx])  # числитель, потом суммировать по k (по idx)
+
+        divider = exp_term / sum_jk
+        for idx in range(len(eta)):
+            eta_k[idx] = np.divide(np.asarray(self.lamb[idx]),
+                 np.sum(divider * demands_prob, axis=0))
+
+        eta = [list(eta_k[0]),list(eta_k[1])]
+
+        # # посчитано по-старому
+        # n_points, n_centers = distance_matrix.shape
+        # eta_repmat = np.tile(np.asarray(eta[0]).reshape(1, -1), (n_points, 1))
+        # exp_term = np.exp(- self.beta * distance_matrix)
+        # divider = exp_term / np.sum(np.multiply(exp_term,
+        #                                         eta_repmat), axis=1).reshape((-1, 1))
+        # eta1 = np.divide(np.asarray(self.lamb[0]),
+        #                 np.sum(divider * demands_prob, axis=0))
 
         return eta
 
-    def update_gibbs(self, eta, distance_matrix):
+    def update_gibbs(self, eta, distance_matrix,point_type):
         n_points, n_centers = distance_matrix.shape
-        eta_repmat = np.tile(np.asarray(eta).reshape(1, -1), (n_points, 1))
+        #eta_repmat = np.tile(np.asarray(eta).reshape(1, -1), (n_points, 1))
         exp_term = np.exp(- self.beta * distance_matrix)
-        factor = np.multiply(exp_term, eta_repmat)
-        gibbs = factor / np.sum(factor, axis=1).reshape((-1, 1))
+
+
+        # нужно посчитать sum_k отдельно для точек класса 0 и точек класса 1.
+
+        # в знаменателе - должен быть один столбик - по всем j - столбик длиной кол-во точек
+        # в числителе -- сумма по k - для эта j
+        eta_k = [[],[]]
+        sum_k = 0; #[[],[]]
+        for idx,eta_jk in enumerate(eta):
+            sum_k += np.multiply(exp_term, eta_jk)
+        gibbs = sum_k / np.sum(sum_k, axis=1).reshape((-1, 1))
+
+        # # подсчитано по-старому
+        # n_points, n_centers = distance_matrix.shape
+        # eta_repmat = np.tile(np.asarray(eta).reshape(1, -1), (n_points, 1))
+        # exp_term = np.exp(- self.beta * distance_matrix)
+        # factor = np.multiply(exp_term, eta_repmat)
+        # gibbs1 = factor / np.sum(factor, axis=1).reshape((-1, 1))
+
         return gibbs
 
     def set_gibbs_fixed_points(self, gibbs, fixed_points):
