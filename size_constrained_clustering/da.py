@@ -57,7 +57,9 @@ class DeterministicAnnealing(base.Base):
             T (list): inverse choice of beta coefficients
         '''
         super(DeterministicAnnealing, self).__init__(n_clusters, max_iters, distance_func)
-        self.lamb = [distribution,distribution]
+        self.lamb = [distribution, distribution]
+        self.lamb = [[0.5, 0.5],[0.9, 0.1]]
+
         assert np.sum(distribution).round(3) == 1
         assert len(distribution) == n_clusters
         assert isinstance(T, list) or isinstance(T, tuple) or T is None
@@ -101,6 +103,7 @@ class DeterministicAnnealing(base.Base):
 
             #if point_type:
             #    eta = [self.lamb, self.lamb]
+            eta_array = np.array([])
 
             if self.debug:
                 show_data(X, None, centers)
@@ -108,6 +111,12 @@ class DeterministicAnnealing(base.Base):
                 self.beta = 1. / self.t
                 distance_matrix = self.distance_func(X, centers)
                 eta = self.update_eta(eta, demands_prob, distance_matrix,point_type)
+                eta_array = np.append(eta_array,eta)
+
+                # Попытка убрать проблему с огромным ростом eta, скорей всего дело в другом
+                #if i%20==0:
+                #    eta = eta / np.max(eta)
+
                 gibbs = self.update_gibbs(eta, distance_matrix,point_type)
                 if fixed_points:
                     gibbs = self.set_gibbs_fixed_points(gibbs, fixed_points)
@@ -115,8 +124,12 @@ class DeterministicAnnealing(base.Base):
                 if fixed_points:
                     centers = self.set_centers_for_anchors(centers, X, fixed_points)
                 self.t *= 0.999
+                if np.sum(eta)>=1e14:
+                    print(i)
+                    break
 
-                labels = np.argmax(gibbs, axis=1)
+                labels = np.argmax(gibbs, axis=1)  # вот здесь мы еще должны проверять, что i-ая точка имеет тип k ?
+                                                   # v_ijk=1 if x_i ∈ C_j and x_i is of type-k
 
                 if self._is_satisfied(labels): break
 
@@ -207,14 +220,14 @@ class DeterministicAnnealing(base.Base):
         for idx,eta_jk in enumerate(eta):
             sum_k += np.multiply(exp_term, eta_jk)  # сумма по k для эта_j_k*exp()
         sum_jk = np.sum(sum_k, axis = 1).reshape((-1, 1))
-            #numerator[idx] = np.asarray(self.lamb[idx])  # числитель, потом суммировать по k (по idx)
 
         divider = exp_term / sum_jk
         for idx in range(len(eta)):
             eta_k[idx] = np.divide(np.asarray(self.lamb[idx]),
-                 np.sum(divider * demands_prob, axis=0))
+                 np.sum(divider[point_type[idx]] * demands_prob[point_type[idx]], axis=0))
 
         eta = [list(eta_k[0]),list(eta_k[1])]
+
 
         # # посчитано по-старому
         # n_points, n_centers = distance_matrix.shape
@@ -232,7 +245,6 @@ class DeterministicAnnealing(base.Base):
         #eta_repmat = np.tile(np.asarray(eta).reshape(1, -1), (n_points, 1))
         exp_term = np.exp(- self.beta * distance_matrix)
 
-
         # нужно посчитать sum_k отдельно для точек класса 0 и точек класса 1.
 
         # в знаменателе - должен быть один столбик - по всем j - столбик длиной кол-во точек
@@ -241,7 +253,8 @@ class DeterministicAnnealing(base.Base):
         sum_k = 0; #[[],[]]
         for idx,eta_jk in enumerate(eta):
             sum_k += np.multiply(exp_term, eta_jk)
-        gibbs = sum_k / np.sum(sum_k, axis=1).reshape((-1, 1))
+        gibbs = np.divide(sum_k,
+                          np.sum(sum_k, axis=1).reshape((-1, 1)))
 
         # # подсчитано по-старому
         # n_points, n_centers = distance_matrix.shape
