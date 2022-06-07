@@ -73,11 +73,24 @@ class DeterministicAnnealing(base.Base):
         random.seed(random_state)
         np.random.seed(random_state)
 
-    def fit(self, X, demands_prob=None, fixed_points=None):
+    def fit(self, X, demands_prob=None, fixed_points=None, groups=None):
         # setting T, loop
         solutions = []
         diff_list = []
         is_early_terminated = False
+
+        group_matrix = np.identity(self.n_clusters)
+
+        if groups:
+            group_dict = collections.defaultdict(list)
+            for i, group in enumerate(groups):
+                group_dict[group].append(i)
+
+            for idxs in group_dict.values():
+                for i in idxs:
+                    for j in idxs:
+                        group_matrix[i, j] = 1
+        print(group_matrix)
 
         n_samples, n_features = X.shape
         self.capacity = [n_samples * d for d in self.lamb]
@@ -104,6 +117,7 @@ class DeterministicAnnealing(base.Base):
             for i in range(self.max_iters):
                 self.beta = 1. / self.t
                 distance_matrix = self.distance_func(X, centers)
+                distance_matrix = distance_matrix @ group_matrix
                 eta = self.update_eta(eta, demands_prob, distance_matrix)
                 gibbs = self.update_gibbs(eta, distance_matrix)
                 if fixed_points:
