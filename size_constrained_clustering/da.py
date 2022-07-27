@@ -9,7 +9,6 @@
 '''
 import collections
 import logging
-import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -26,29 +25,11 @@ import base
 logger = logging.getLogger(__name__)
 
 
-def show_data(X, gibbs, centers):
-    if gibbs is not None:
-        probs = np.max(gibbs, axis=1)
-        clusters = np.argmax(gibbs, axis=1)
-        colors = [cm.summer(p) for p in probs]
-    else:
-        colors = [0] * X.shape[0]
-    plt.clf()
-    plt.scatter(X[:, 0], X[:, 1], s=10, c=colors)
-    for i, c in enumerate(centers):
-        plt.scatter(c[0], c[1], s=50)
-    plt.gca().set_aspect('equal')
-    plt.gca().invert_yaxis()
-    plt.pause(0.001)
-
-
-plt.show()
-
-
 class DeterministicAnnealing(base.Base):
 
-    def __init__(self, n_clusters, distribution, max_iters=1000,
-                 max_cycles=3,
+    def __init__(self, n_clusters, distribution,
+                 max_iters=1000, max_cycles=3,
+                 labels_unchanged_threshold=15,
                  distance_func=cdist, random_state=42,
                  T=(1000, 100, 10, 1, 0.1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8),
                  debug=False):
@@ -72,6 +53,9 @@ class DeterministicAnnealing(base.Base):
         self._eta = None
         self._demands_prob = None
         self.debug = debug
+        self.labels_unchanged = 0
+        self.labels_unchanged_threshold = labels_unchanged_threshold
+        self.prev_labels = None
         random.seed(random_state)
         np.random.seed(random_state)
         logger.debug(f'Temperature: {self.T}')
@@ -101,8 +85,6 @@ class DeterministicAnnealing(base.Base):
             eta = self.lamb
             labels = None
 
-            if self.debug:
-                show_data(X, None, centers)
             for i in tqdm(range(self.max_iters)):
                 self.beta = 1. / self.t
                 distance_matrix = self.distance_func(X, centers)
@@ -117,10 +99,10 @@ class DeterministicAnnealing(base.Base):
 
                 labels = np.argmax(gibbs, axis=1)
 
-                if self._is_satisfied(labels): break
+                self.on_iter_end(i, X, eta, gibbs, centers, labels)
+                if self.break_condition(labels): break
 
-                if self.debug and i < 50:
-                    show_data(X, gibbs, centers)
+                self.prev_labels = labels
 
             solutions.append([labels, centers])
             resultant_clusters = len(collections.Counter(labels))
@@ -183,6 +165,9 @@ class DeterministicAnnealing(base.Base):
             centers[cluster_id] = X[points_idxs].mean(axis=0)
         return centers
 
+    def break_condition(self, labels):
+        return self._is_satisfied(labels)
+
     def _is_satisfied(self, labels):
         count = collections.Counter(labels)
         for cluster_id in range(len(self.capacity)):
@@ -225,6 +210,9 @@ class DeterministicAnnealing(base.Base):
         p_y_repmat = np.tile(p_y.reshape(-1, 1), (1, n_features))
         centers = np.divide(divide_up, p_y_repmat)
         return centers
+
+    def on_iter_end(self, i, X, eta, gibbs, centers, labels):
+        pass
 
 
 if __name__ == "__main__":
