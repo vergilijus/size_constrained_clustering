@@ -7,22 +7,23 @@
 @Date: 11/28/2019
 @Paper reference: Clustering with Capacity and Size Constraints: A Deterministic Approach
 '''
-from typing import Dict, Tuple
-
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
-from copy import deepcopy
 import collections
-import random
-from scipy.spatial.distance import cdist
-
+import logging
+import matplotlib.cm as cm
+import matplotlib.pyplot as plt
+import numpy as np
 import os
+import random
 import sys
+from scipy.spatial.distance import cdist
+from tqdm import tqdm
+from typing import Dict, Tuple
 
 path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(path)
 import base
+
+logger = logging.getLogger(__name__)
 
 
 def show_data(X, gibbs, centers):
@@ -47,6 +48,7 @@ plt.show()
 class DeterministicAnnealing(base.Base):
 
     def __init__(self, n_clusters, distribution, max_iters=1000,
+                 max_cycles=3,
                  distance_func=cdist, random_state=42,
                  T=(1000, 100, 10, 1, 0.1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8),
                  debug=False):
@@ -63,7 +65,7 @@ class DeterministicAnnealing(base.Base):
         assert isinstance(T, list) or isinstance(T, tuple) or T is None
 
         self.beta = None
-        self.T = T
+        self.T = T[:max_cycles]
         self.t = None
         self.cluster_centers_ = None
         self.labels_ = None
@@ -72,6 +74,7 @@ class DeterministicAnnealing(base.Base):
         self.debug = debug
         random.seed(random_state)
         np.random.seed(random_state)
+        logger.debug(f'Temperature: {self.T}')
 
     def fit(self, X, demands_prob=None, fixed_points=None):
         # setting T, loop
@@ -88,8 +91,7 @@ class DeterministicAnnealing(base.Base):
             assert demands_prob.shape[0] == X.shape[0]
         demands_prob = demands_prob / sum(demands_prob)
         for t in self.T:
-            if self.debug:
-                print(t)
+            logger.debug(f'Current T: {t}')
             self.t = t
             centers = self.initial_centers(X)
 
@@ -101,7 +103,7 @@ class DeterministicAnnealing(base.Base):
 
             if self.debug:
                 show_data(X, None, centers)
-            for i in range(self.max_iters):
+            for i in tqdm(range(self.max_iters)):
                 self.beta = 1. / self.t
                 distance_matrix = self.distance_func(X, centers)
                 eta = self.update_eta(eta, demands_prob, distance_matrix)
