@@ -32,6 +32,7 @@ class DeterministicAnnealing(base.Base):
                  labels_unchanged_threshold=15,
                  distance_func=cdist, random_state=42,
                  T=(1000, 100, 10, 1, 0.1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8),
+                 show_progress=True,
                  debug=False):
         '''
         Args:
@@ -56,6 +57,7 @@ class DeterministicAnnealing(base.Base):
         self.labels_unchanged = 0
         self.labels_unchanged_threshold = labels_unchanged_threshold
         self.prev_labels = None
+        self.show_progress = show_progress
         random.seed(random_state)
         np.random.seed(random_state)
         logger.debug(f'Temperature: {self.T}')
@@ -85,7 +87,7 @@ class DeterministicAnnealing(base.Base):
             eta = self.lamb
             labels = None
 
-            for i in tqdm(range(self.max_iters)):
+            for i in tqdm(range(self.max_iters), disable=not self.show_progress):
                 self.beta = 1. / self.t
                 distance_matrix = self.distance_func(X, centers)
                 eta = self.update_eta(eta, demands_prob, distance_matrix)
@@ -199,7 +201,7 @@ class DeterministicAnnealing(base.Base):
 
     def set_gibbs_fixed_points(self, gibbs, fixed_points):
         for cluster_id, points_id in fixed_points.items():
-            gibbs[[points_id]] = 0
+            gibbs[tuple([points_id])] = 0
             gibbs[[points_id], cluster_id] = 1
         return gibbs
 
