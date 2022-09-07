@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 class DeterministicAnnealing(base.Base):
 
     def __init__(self, n_clusters, distribution,
-                 max_iters=1000, max_cycles=3,
+                 max_iters=1000,
                  labels_unchanged_threshold=15,
                  distance_func=cdist, random_state=42,
                  T=(1000, 100, 10, 1, 0.1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8),
@@ -47,7 +47,7 @@ class DeterministicAnnealing(base.Base):
         assert isinstance(T, list) or isinstance(T, tuple) or T is None
 
         self.beta = None
-        self.T = T[:max_cycles]
+        self.T = T
         self.t = None
         self.cluster_centers_ = None
         self.labels_ = None
