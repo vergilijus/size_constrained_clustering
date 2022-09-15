@@ -11,40 +11,6 @@ this_directory = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(this_directory, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
-dist.Distribution().fetch_build_eggs(["cython>=0.27", "numpy>=1.13"])
-
-try:
-    from numpy import get_include
-except:
-    def get_include():
-        # Defer import to later
-        from numpy import get_include
-        return get_include()
-
-try:
-    from Cython.Build import cythonize
-except ImportError:
-    print("! Could not import Cython !")
-    cythonize = None
-
-
-# https://cython.readthedocs.io/en/latest/src/userguide/source_files_and_compilation.html#distributing-cython-modules
-def no_cythonize(extensions, **_ignore):
-    for extension in extensions:
-        sources = []
-        for sfile in extension.sources:
-            path, ext = os.path.splitext(sfile)
-            if ext in (".pyx", ".py"):
-                if extension.language == "c++":
-                    ext = ".cpp"
-                else:
-                    ext = ".c"
-                sfile = path + ext
-            sources.append(sfile)
-        extension.sources[:] = sources
-    return extensions
-
-
 path = os.path.dirname(os.path.abspath(__file__))
 
 with open(os.path.join(path, "requirements.txt")) as fp:
@@ -54,7 +20,6 @@ VERSION = "0.1.1"
 LICENSE = 'MIT'
 setup(
     version=VERSION,
-    setup_requires=["cython", "numpy"],
     install_requires=install_requires,
     name='size_constrained_clustering',
     description='Size Constrained Clustering solver',
