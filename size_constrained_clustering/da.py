@@ -9,7 +9,6 @@
 '''
 import collections
 import logging
-import matplotlib.pyplot as plt
 import numpy as np
 import os
 import random
@@ -215,38 +214,3 @@ class DeterministicAnnealing(base.Base):
 
     def on_iter_end(self, i, X, eta, gibbs, centers, labels):
         pass
-
-
-if __name__ == "__main__":
-    X = []
-    n_points = 1000
-    random_state = 42
-    random.seed(random_state)
-    np.random.seed(random_state)
-    # demands = np.random.randint(1, 24, (n_points, 1))
-    X = np.random.rand(n_points, 2)
-    demands = np.ones((n_points, 1))
-    n_clusters = 4
-    n_iters = 100
-    max_size = [n_points / n_clusters] * n_clusters
-    max_size = [0.25, 0.5, 0.1, 0.15]
-
-    da = DeterministicAnnealing(n_clusters, max_size, n_iters)
-    da.fit(X, demands)
-    labels = da.labels_
-    centers = da.cluster_centers_
-    print(centers)
-    labels_demand_cnt = {}
-    for i, label in enumerate(labels):
-        labels_demand_cnt[label] = labels_demand_cnt.get(label, 0) + demands[i][0]
-
-    sorted_labels = sorted(labels_demand_cnt.items())
-    x = list(range(n_clusters))
-    y = [j for i, j in sorted_labels]
-    plt.scatter(X[:, 0], X[:, 1], c=labels)
-    print(collections.Counter(labels_demand_cnt))
-    # plt.show()
-    plt.xlabel("X")
-    plt.ylabel("Y")
-    # plt.bar(x, y)
-    plt.show()
