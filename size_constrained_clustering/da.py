@@ -17,14 +17,12 @@ from scipy.spatial.distance import cdist
 from tqdm import tqdm
 from typing import Dict, Tuple
 
-path = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(path)
-import base
+from size_constrained_clustering.base import Base
 
 logger = logging.getLogger(__name__)
 
 
-class DeterministicAnnealing(base.Base):
+class DeterministicAnnealing(Base):
 
     def __init__(self, n_clusters, distribution,
                  max_iters=1000,

@@ -1,5 +1,5 @@
 #!usr/bin/python 3.7
-#-*-coding:utf-8-*-
+# -*-coding:utf-8-*-
 
 '''
 @file: base.py, base for clustering algorithm
@@ -8,10 +8,6 @@
 '''
 from scipy.spatial.distance import cdist
 
-import os 
-import sys 
-path = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(path)
 
 class Base(object):
 
@@ -28,14 +24,14 @@ class Base(object):
         assert n_clusters >= 1
         assert isinstance(max_iters, int)
         assert max_iters >= 1
-        self.n_clusters = n_clusters 
+        self.n_clusters = n_clusters
         self.max_iters = max_iters
         if distance_func is not None and not callable(distance_func):
             raise Exception("Distance function is not callable")
         self.distance_func = distance_func
 
     def fit(self, X):
-        pass 
+        pass
 
     def predict(self, X):
         pass
