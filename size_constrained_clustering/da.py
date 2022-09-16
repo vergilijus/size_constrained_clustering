@@ -9,10 +9,9 @@
 '''
 import collections
 import logging
-import numpy as np
-import os
 import random
-import sys
+
+import numpy as np
 from scipy.spatial.distance import cdist
 from tqdm import tqdm
 from typing import Dict, Tuple
