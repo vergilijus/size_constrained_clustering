@@ -28,8 +28,7 @@ class DeterministicAnnealing(Base):
                  labels_unchanged_threshold=15,
                  distance_func=cdist, random_state=42,
                  T=(1000, 100, 10, 1, 0.1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8),
-                 show_progress=True,
-                 debug=False):
+                 show_progress=True):
         '''
         Args:
             n_clusters (int): number of clusters
@@ -49,7 +48,6 @@ class DeterministicAnnealing(Base):
         self.labels_ = None
         self._eta = None
         self._demands_prob = None
-        self.debug = debug
         self.labels_unchanged = 0
         self.labels_unchanged_threshold = labels_unchanged_threshold
         self.prev_labels = None
