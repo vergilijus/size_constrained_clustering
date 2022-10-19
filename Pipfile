@@ -1,0 +1,21 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+joblib = "==0.15.1"
+psutil = ">=5.6.6"
+numpy = ">=1.16.5"
+scipy = ">=1.6.0"
+ortools = ">=6.7"
+six = "==1.12.0"
+matplotlib = ">=3.1.0"
+seaborn = ">=0.10.1"
+scikit-learn = ">=0.24.1"
+Cython = "==0.29.20"
+
+[dev-packages]
+
+[requires]
+python_version = "3.8"
